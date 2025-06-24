@@ -1,0 +1,34 @@
+Module name:  
+    aes_key_mem
+
+Function description:  
+    This module implements the AES key memory and key expansion logic for generating round keys used in AES encryption and decryption. It supports both AES-128 and AES-256 key lengths and generates the necessary round keys based on the input key and the current round index. It handles initialization, key expansion, and indicates when the key expansion process is complete and the round keys are ready for use.
+
+Input ports:  
+    clk: Clock signal for synchronizing the internal registers.  
+    reset_n: Asynchronous active low reset signal to initialize the internal state.  
+    key [255:0]: The input AES key, which can be 128-bit or 256-bit length, stored in the higher bits as needed.  
+    keylen: 1-bit signal indicating the key length; 0 for AES-128, 1 for AES-256.  
+    init: Signal to initialize the key expansion process.  
+    round [3:0]: 4-bit input specifying the current AES round number for which the round key is output.  
+    new_sboxw [31:0]: 32-bit input providing the substituted and rotated word from the S-Box used in key expansion.
+
+Output ports:  
+    round_key [127:0]: 128-bit output providing the round key corresponding to the current round input.  
+    ready: 1-bit signal indicating that the key expansion process has completed and round keys are ready for use.  
+    sboxw [31:0]: 32-bit output reflecting the current word used for S-Box lookups during key expansion.
+
+Implementation:  
+- The module contains an internal memory array `key_mem` capable of storing up to 15 round keys of 128 bits each, indexed by round number.  
+- It supports two AES key sizes: AES-128 (10 rounds) and AES-256 (14 rounds), controlled by the `keylen` input.  
+- Internal registers maintain the current round counter, key memory control state machine, RCON value for key schedule transformations, and previous key words needed for generating new round keys.  
+- A finite state machine (FSM) manages the stages of key expansion, transitioning through states: IDLE, INIT, GENERATE, and DONE. During these states:  
+  - INIT resets the round counter and prepares the module for key generation.  
+  - GENERATE increments the round counter and triggers round key computation at each step.  
+  - DONE signals completion by asserting `ready`.  
+- The key expansion logic extracts 32-bit words from previous keys, applies the AES key schedule transformations including rotations, S-Box substitutions (`new_sboxw`), and XOR with the RCON constant.  
+- Separate logic calculates the next RCON value used in the key schedule, implementing the finite field multiplication by 2 and conditionally resetting or advancing RCON.  
+- The round key generator assembles new round keys by XORing previous key words and transformed words, taking into account whether the AES key length is 128 or 256 bits.  
+- The module outputs the round key corresponding to the current round on the `round_key` output, and provides the status of readiness and current S-Box word as `ready` and `sboxw` respectively.  
+- All internal registers and memories are synchronous to the clock and asynchronously reset by `reset_n`, with explicit write enables for controlled updates.  
+- The design ensures that upon initialization (`init` asserted), key expansion starts from the first round, generating keys sequentially until all required round keys are computed, signaling completion afterward.

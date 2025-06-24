@@ -1,0 +1,25 @@
+Module name:  
+    weight_buffer  
+
+Function description:  
+    This module implements a weight buffer memory with a 16-entry storage, where each entry is 128 bits wide. It provides synchronous read and write access to the memory, controlled by clock, chip enable, write enable, and a return enable signal. The buffer is intended to store weight data for processing elements, likely used in neural network or similar applications.
+
+Input ports:  
+    CLK: Clock signal for synchronization of read and write operations.  
+    CEN: Chip Enable signal, active low, to enable read access to the memory.  
+    WEN: Write Enable signal, active low, to enable write access to the memory.  
+    A [12:0]: 13-bit address input to select the memory location for read or write operations (although only 16 locations are implemented, the upper bits are not used).  
+    D [127:0]: 128-bit data input used for writing data into the memory.  
+    RETN: Return Enable signal, active high, used to enable any memory operation (read or write).
+
+Output ports:  
+    Q [127:0]: 128-bit data output that provides the data read from the memory at the addressed location.
+
+Implementation:  
+    The module defines an internal memory array 'mem' consisting of 16 elements, each 128 bits wide. On the rising edge of the clock (CLK), the module checks the control signals:  
+    - If WEN is low (write enabled) and RETN is high, a write operation occurs: the input data D is stored in the memory at address A, and the output Q is cleared to zero.  
+    - If WEN is high and CEN is low (chip enabled for reading) and RETN is high, a read operation occurs: the content of memory at address A is assigned to the output Q.  
+    - Otherwise, the output Q is set to zero.  
+    Note that the address input A is 13 bits wide, but the memory depth is only 16 entries, so only the lower 4 bits are effectively used to address the memory.  
+    The RETN signal acts as an overall enable to allow read or write operations to proceed; when RETN is low, the output remains zero regardless of other signals.  
+    This design ensures synchronous memory access with clear separation between read and write operations controlled via WEN and CEN, and also clears the output when no valid operation is performed.

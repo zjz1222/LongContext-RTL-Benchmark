@@ -1,0 +1,38 @@
+Module name:  
+    compressor_4_2  
+
+Function description:  
+    This module implements a 4:2 compressor by combining two instances of a 3:2 compressor. A 4:2 compressor reduces four input bits and an additional carry-in into two sum outputs and two carry outputs. It is commonly used in multiplier circuits and other arithmetic units to compress partial sums and carries efficiently.
+
+Input ports:  
+    i0: First input bit to the compressor  
+    i1: Second input bit to the compressor  
+    i2: Third input bit to the compressor  
+    i3: Fourth input bit to the compressor  
+    ci: Carry input bit from a previous stage  
+
+Output ports:  
+    co: Carry output from the first 3:2 compressor  
+    c: Carry output from the second 3:2 compressor  
+    d: Sum output from the second 3:2 compressor  
+
+Implementation:  
+    The compressor_4_2 module internally instantiates two compressor_3_2 modules connected in series.  
+    - The first compressor_3_2 instance takes inputs i0, i1, and i2, producing an intermediate carry output 'co' and an intermediate sum 'wire_d'.  
+    - The second compressor_3_2 instance takes as inputs the intermediate sum 'wire_d', i3, and the external carry-in 'ci', producing the final carry output 'c' and sum output 'd'.  
+    This cascaded structure enables the 4:2 compression functionality by effectively reducing four bits plus a carry-in into two sum bits and two carry bits.  
+    The design comments also include detailed resource usage estimates in terms of gate and transistor counts, illustrating the expected hardware complexity for this implementation.
+
+Submodules:
+    - compressor_3_2
+    Input ports:  
+        i0: First single-bit input operand.  
+        i1: Second single-bit input operand.  
+        ci: Carry-in single-bit input operand.
+    Output ports:  
+        co: Carry-out single-bit output resulting from the addition.  
+        d: Sum (or difference) single-bit output resulting from the addition.
+    Functionality:  
+        This module implements a 3:2 compressor, which essentially functions as a full adder. It computes the sum and carry outputs from three single-bit inputs. The internal design focuses on an efficient XOR gate structure by reusing intermediate results generated inside the module, thus reducing the number of MOS transistors needed for the full adder implementation.
+
+    You can call these submodules without instantiating them to implement the functionality of the module. 

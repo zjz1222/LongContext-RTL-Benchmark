@@ -1,0 +1,26 @@
+Module name:  
+    compressor_3_2
+
+Function description:  
+    This module implements a 3:2 compressor, which essentially functions as a full adder. It computes the sum and carry outputs from three single-bit inputs. The internal design focuses on an efficient XOR gate structure by reusing intermediate results generated inside the module, thus reducing the number of MOS transistors needed for the full adder implementation.
+
+Input ports:  
+    i0: First single-bit input operand.  
+    i1: Second single-bit input operand.  
+    ci: Carry-in single-bit input operand.
+
+Output ports:  
+    co: Carry-out single-bit output resulting from the addition.  
+    d: Sum (or difference) single-bit output resulting from the addition.
+
+Implementation:  
+    The module uses a combination of basic logic gates (NAND, NOT, AOI4) to realize the full adder function with optimized transistor count. Specifically:  
+    - First, a NAND gate computes the negation of the AND of inputs i0 and i1 (i0_nand_i1).  
+    - Then, an AOI4 gate generates AOI_o1 as the negation of the OR of two AND terms involving i0, i1, and i0_nand_i1.  
+    - The output xor_o1 is produced by inverting AOI_o1, forming an equivalent XOR operation between i0 and i1.  
+    - Next, the module computes the NAND of ci and xor_o1 (xoro1_nand_ci).  
+    - Another AOI4 gate calculates AOI_o2 as the negation of the OR of two AND terms involving xoro1_nand_ci, xor_o1, and ci.  
+    - The sum output d is obtained by inverting AOI_o2.  
+    - The carry output co is produced by NANDing xoro1_nand_ci and i0_nand_i1.
+
+    This structure reuses intermediate signals to minimize gate count and transistor usage. According to the resource summary: 7 gates (2 NOT, 3 NAND, 2 AOI4) are used, totaling 32 transistors, with no standalone AND, OR, NOR, XNOR, or XOR gates instantiated explicitly.

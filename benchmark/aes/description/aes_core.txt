@@ -1,0 +1,99 @@
+Module name:  
+    aes_core  
+
+Function description:  
+    This module represents the core of an AES (Advanced Encryption Standard) encryption and decryption engine. It controls the overall AES process, including key initialization, encryption, and decryption operations on 128-bit data blocks. Based on control signals, it manages submodules for enciphering, deciphering, and key expansion, and provides output data and flags indicating readiness and validity of the processed data.
+
+Input ports:  
+    clk: Clock signal for synchronous operation.  
+    reset_n: Asynchronous active-low reset signal that initializes the core.  
+    encdec: Control signal to select between encryption (1) and decryption (0) mode.  
+    init: Signal to start key setup/init phase.  
+    next: Signal to start the next encryption or decryption operation.  
+    key [255:0]: Input AES key data, maximum 256 bits for supporting AES-256.  
+    keylen: Control signal indicating the key length (AES-128, AES-192, or AES-256).  
+    block [127:0]: 128-bit data block input to be encrypted or decrypted.  
+
+Output ports:  
+    ready: Signal indicating the AES core is ready to accept new commands or data.  
+    result [127:0]: 128-bit output data block resulting from encryption or decryption.  
+    result_valid: Signal indicating that the output result is valid and ready for use.  
+
+Implementation:  
+    The module implements a finite state machine (FSM) with three states: CTRL_IDLE, CTRL_INIT, and CTRL_NEXT.  
+    - CTRL_IDLE: The core waits for initialization or next operation commands.  
+    - CTRL_INIT: The core performs the key expansion/init phase via the key memory submodule.  
+    - CTRL_NEXT: The core waits for the completion of encryption or decryption of a data block.  
+
+    Internally, there are registers to hold control FSM state, ready and result_valid flags with write enables, all updated synchronously on the rising clock edge or asynchronously reset.  
+
+    The module instantiates three main submodules:  
+    - aes_encipher_block: Implements the encryption datapath, consuming the key schedule and input block, producing encrypted output and ready signal.  
+    - aes_decipher_block: Implements the decryption datapath for AES, similarly providing decrypted data and ready status.  
+    - aes_key_mem: Responsible for key expansion and generating round keys used during encryption/decryption; it signals readiness once key scheduling is complete.  
+    Additionally, an aes_sbox module performs the S-box substitution used both in the encryption datapath and key memory expansion.  
+
+    Multiplexers are used to select which submodule accesses the shared S-box based on the current operating state (initialization or encryption/decryption) and to route the appropriate "next" command, round number, result data, and ready signals based on whether encryption or decryption is selected (indicated by encdec input).  
+
+    The FSM coordinates the control flow:  
+    - On init assertion, it enters CTRL_INIT, where key initialization occurs until the key_ready signal is asserted by aes_key_mem. Then it reverts to CTRL_IDLE.  
+    - On next assertion in idle state, it moves to CTRL_NEXT state, triggers either encryption or decryption via respective datapath, and waits for that operation to complete (muxed_ready asserted). Once ready, it asserts result_valid and returns to IDLE, indicating that a valid output block is available.  
+
+    The core registers result_valid and ready outputs appropriately and uses synchronous resets for all state and flags. This design supports AES operation with selectable key length, handling the control and coordination of the whole AES encryption/decryption process for 128-bit blocks.
+
+Submodules:
+    - aes_encipher_block
+    Input ports:  
+        clk: Clock input signal for synchronous operations.  
+        reset_n: Active low synchronous reset signal to initialize internal registers.  
+        next: Signal to initiate the decryption of the next 128-bit data block.  
+        keylen: 1-bit input indicating the AES key length (0 for 128-bit, 1 for 256-bit).  
+        round_key: 128-bit input round key used in the current decryption round.  
+        block: 128-bit input data block to be decrypted.  
+    Output ports:  
+        round: 4-bit output indicating the current decryption round number.  
+        new_block: 128-bit output providing the decrypted data block after processing.  
+        ready: 1-bit output signal indicating when the decrypted data block is ready and valid.  
+    Functionality:
+        This module implements a single block of an AES (Advanced Encryption Standard) decryption engine. It performs the AES inverse cipher operations on a 128-bit input data block using a provided round key and produces a decrypted 128-bit output block. The module supports both AES-128 and AES-256 key lengths, managing the required number of decryption rounds accordingly. It controls the sequence of inverse cipher transformations including AddRoundKey, InvShiftRows, InvSubBytes (via inverse S-box), and InvMixColumns, orchestrated through a finite state machine, and signals when the output data is ready.
+
+    - aes_decipher_block  
+    Input ports:  
+        clk: Clock input signal for synchronous operations.  
+        reset_n: Active low synchronous reset signal to initialize internal registers.  
+        next: Signal to initiate the decryption of the next 128-bit data block.  
+        keylen: 1-bit input indicating the AES key length (0 for 128-bit, 1 for 256-bit).  
+        round_key: 128-bit input round key used in the current decryption round.  
+        block: 128-bit input data block to be decrypted.  
+    Output ports:  
+        round: 4-bit output indicating the current decryption round number.  
+        new_block: 128-bit output providing the decrypted data block after processing.  
+        ready: 1-bit output signal indicating when the decrypted data block is ready and valid.  
+    Functionality:  
+        This module implements a single block of an AES (Advanced Encryption Standard) decryption engine. It performs the AES inverse cipher operations on a 128-bit input data block using a provided round key and produces a decrypted 128-bit output block. The module supports both AES-128 and AES-256 key lengths, managing the required number of decryption rounds accordingly. It controls the sequence of inverse cipher transformations including AddRoundKey, InvShiftRows, InvSubBytes (via inverse S-box), and InvMixColumns, orchestrated through a finite state machine, and signals when the output data is ready.
+    
+    - aes_key_mem
+    Input ports:  
+        clk: Clock signal for synchronizing the internal registers.  
+        reset_n: Asynchronous active low reset signal to initialize the internal state.  
+        key [255:0]: The input AES key, which can be 128-bit or 256-bit length, stored in the higher bits as needed.  
+        keylen: 1-bit signal indicating the key length; 0 for AES-128, 1 for AES-256.  
+        init: Signal to initialize the key expansion process.  
+        round [3:0]: 4-bit input specifying the current AES round number for which the round key is output.  
+        new_sboxw [31:0]: 32-bit input providing the substituted and rotated word from the S-Box used in key expansion.
+    Output ports:  
+        round_key [127:0]: 128-bit output providing the round key corresponding to the current round input.  
+        ready: 1-bit signal indicating that the key expansion process has completed and round keys are ready for use.  
+        sboxw [31:0]: 32-bit output reflecting the current word used for S-Box lookups during key expansion.
+    Functionality:  
+        This module implements the AES key memory and key expansion logic for generating round keys used in AES encryption and decryption. It supports both AES-128 and AES-256 key lengths and generates the necessary round keys based on the input key and the current round index. It handles initialization, key expansion, and indicates when the key expansion process is complete and the round keys are ready for use.
+    
+    - aes_sbox
+    Input ports:  
+        sboxw [31:0]: A 32-bit input word, consisting of four bytes to be substituted via the AES S-box.
+    Output ports:  
+        new_sboxw [31:0]: A 32-bit output word containing the substituted bytes corresponding to each input byte after applying the AES S-box.
+    Functionality:  
+        This module implements the AES S-box, a 256-byte substitution box used in AES encryption. It acts as a lookup table that takes an 8-bit input byte and outputs the corresponding 8-bit substituted value according to the AES standard. This specific implementation processes four bytes in parallel, effectively handling a full 32-bit word by performing substitution on each byte simultaneously.
+    
+    You can call these submodules without instantiating them to implement the functionality of the module.

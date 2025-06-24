@@ -1,0 +1,26 @@
+Module name:  
+    shift_buffer  
+
+Function description:  
+    This module implements a 128-bit wide shift buffer memory with 32 entries. It supports synchronous reset, write, and read operations controlled by clock and enable signals. The buffer stores 128-bit data words and allows selective updating and reading of stored data based on address and control signals.
+
+Input ports:  
+    CLK: Clock signal, synchronizing all operations.  
+    CEN: Chip enable signal, active low; when low, enables reading from the buffer.  
+    WEN: Write enable signal, active low; when low and RETN is asserted, initiates a write operation.  
+    A [4:0]: 5-bit address input to select one of the 32 memory entries.  
+    RESET: Synchronous reset signal; when asserted, clears the entire memory.  
+    D [127:0]: 128-bit wide data input bus used for writing data into the buffer.  
+    RETN: Active signal required to enable read/write operations.  
+
+Output ports:  
+    Q [127:0]: 128-bit output data bus providing the data stored at the selected address during read operations.  
+
+Implementation:  
+    The buffer is implemented as an array 'mem' of 32 entries, each 128 bits wide. On the rising edge of the clock:  
+    - If RESET is asserted, all 32 memory entries are synchronously cleared to zero using a for-loop.  
+    - If write enable (WEN) is low and RETN is asserted, a write operation occurs. The data input D is selectively written into a portion of memory starting from address A offset by index i, within the first 16 addresses after A, and specifically into each bit slice j across 8 consecutive bits per i. This nested loop copies data bit-by-bit from D into consecutive memory locations offset by A. Note that the assignment is done on a bit basis within an unusual nested loop structure.  
+    - If chip enable (CEN) is low and RETN is asserted (and write is not occurring), a read operation is performed by outputting the 128-bit data stored in memory at address A onto output Q.  
+    - If none of the above conditions are met, Q outputs zeros.  
+
+    The module uses register Q for output storage and relies on synchronous operations gated by control signals RESET, WEN, CEN, and RETN. The design allows selective partial writing of data into the buffer, though the specific addressing and bit copying scheme is nonstandard and might be intended for a custom data alignment or shifting use case.

@@ -1,0 +1,41 @@
+Module name:  
+    aes_encipher_block  
+
+Functional description:  
+    This module implements an AES encryption block that performs the enciphering process on a 128-bit input data block using a provided round key. It supports both 128-bit and 256-bit AES key lengths, managing the required AES rounds accordingly. The module implements the AES encryption rounds including initial AddRoundKey, multiple main rounds consisting of SubBytes (S-box substitution), ShiftRows, MixColumns, and AddRoundKey transformations, and a final round without MixColumns. The design operates synchronously with a clock and supports an asynchronous active-low reset, providing a ready signal to indicate when encryption is complete.
+
+Input ports:  
+    clk: Clock input signal for synchronous operation.  
+    reset_n: Active-low asynchronous reset signal that initializes internal registers.  
+    next: Start signal input to initiate the block encryption process.  
+    keylen: Select input that chooses between 128-bit (0) and 256-bit (1) AES key lengths.  
+    round_key [127:0]: The 128-bit round key input used in the current encryption round.  
+    new_sboxw [31:0]: The new 32-bit word after S-box substitution used in the SubBytes step.  
+    block [127:0]: The 128-bit data block input to be encrypted.  
+
+Output ports:  
+    round [3:0]: Indicates the current round number in the AES encryption sequence.  
+    sboxw [31:0]: The 32-bit word selected for S-box substitution output.  
+    new_block [127:0]: The updated 128-bit data block output reflecting the current state of encryption.  
+    ready: Signal indicating whether the module is ready for a new encryption operation (high when idle).  
+
+Implementation:  
+    The module internally defines constants for AES key length options (128-bit and 256-bit) and the number of AES rounds for each key length (10 rounds for AES-128, 14 rounds for AES-256). It implements AES encryption core operations as a series of functions:  
+    - gm2 and gm3 implement Galois Field multiplication by 2 and 3, respectively, as per AES MixColumns requirements.  
+    - mixw performs the MixColumns transformation on a 32-bit word using gf multiplication.  
+    - mixcolumns applies the mixw function to each 32-bit word of the 128-bit data block.  
+    - shiftrows rearranges bytes across words in the block according to AES ShiftRows rules.  
+    - addroundkey performs bitwise XOR of the data block with the round key.  
+
+    The state of the block is stored in four 32-bit registers corresponding to four words of the block. Counters for round number and for tracking the subbyte word being processed (sword_ctr) are implemented with write-enable and increment/reset signals for flexible control. The ready signal and a control state machine (enc_ctrl_reg) govern the encryption flow.  
+
+    The main finite state machine includes four states: IDLE, INIT, SBOX, and MAIN.  
+    - In IDLE, upon receiving the 'next' signal, initialization occurs and the FSM transitions to INIT.  
+    - INIT performs the initial AddRoundKey operation on the input block and moves to the SBOX state.  
+    - SBOX runs the SubBytes step on each 32-bit word sequentially, cycling through four words with sword_ctr, updating those words with new S-box substituted data.  
+    - MAIN state performs the MixColumns and AddRoundKey transformations for subsequent rounds. The FSM cycles between SBOX and MAIN until the round counter reaches the total number of rounds depending on the key length.  
+    - At the completion of all rounds, the FSM performs the final AddRoundKey without MixColumns, sets the ready signal, and returns to IDLE.  
+
+    The round_logic combinational block calculates next block state based on the current update_type controlling whether to perform initial AddRoundKey, S-box update, main round processing (MixColumns + AddRoundKey), or final AddRoundKey. Output signals including ready and round number are updated accordingly.  
+
+    Registers are updated on the positive clock edge with asynchronous active-low reset, with write-enable signals controlling register updates to effectively pipeline the data transformations. All AES algorithm steps are carefully mapped into combinational and sequential logic to ensure correct AES encryption functionality in a hardware-efficient manner.

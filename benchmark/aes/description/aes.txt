@@ -1,0 +1,51 @@
+Module name:  
+    aes  
+
+Function description:  
+    This module is a top-level wrapper for an AES (Advanced Encryption Standard) block cipher core. It provides an interface for configuring encryption or decryption operations, loading encryption keys and data blocks, and retrieving the encryption results. The module manages control and status signals while handling input/output data registers to communicate with the AES core.
+
+Input ports:  
+    clk: Clock input signal for synchronous operation.  
+    reset_n: Active low asynchronous reset signal.  
+    cs: Chip select signal enabling access to the AES module registers.  
+    we: Write enable signal to indicate a write operation.  
+    address [7:0]: 8-bit address bus specifying the target register for read/write operations.  
+    write_data [31:0]: 32-bit data input bus used for writing data into the module.  
+
+Output ports:  
+    read_data [31:0]: 32-bit data output bus providing the contents of the addressed register or data from the AES core.
+
+Implementation:  
+    The module defines a set of fixed addresses representing control registers, status registers, configuration, key storage, input data blocks, and result registers. Constants are used to map addresses and control/status bit positions, as well as fixed values for the core's name and version identifiers.
+
+    Internally, it maintains registers for control signals (`init_reg`, `next_reg`), configuration (`encdec_reg` for encryption/decryption mode and `keylen_reg` for key length), key material (`key_reg` array of 8 32-bit words forming up to 256-bit key), input data blocks (`block_reg` array of 4 32-bit words forming 128-bit blocks), and output result data (`result_reg` 128-bit register). It also tracks the validity of results (`valid_reg`) and readiness state of the AES core (`ready_reg`).
+
+    The AES core instance is instantiated within this module and connected to the respective signals. The key and data block registers are concatenated and passed to the AES core. Control signals such as `init`, `next`, `encdec`, and `keylen` are registered and fed to the core.
+
+    The register update logic occurs on the rising edge of `clk` or asynchronously upon deassertion of `reset_n`. On reset, all key, block, and control registers are cleared. During normal operation, write enables (`config_we`, `key_we`, `block_we`) allow updating of control signals, key words, or block words respectively upon valid writes. The module also captures the AES core outputs for `result`, `valid`, and `ready` signals into registers.
+
+    The API logic decodes incoming `address`, `cs`, and `we` signals to determine register access. When writing, the module updates control bits or writes incoming key or block data to the appropriate registers based on the address range. When reading, it outputs fixed core name, version, control, and status registers, or slices of the 128-bit result data depending on the address.
+
+    Thus, the module acts as a memory-mapped interface to the AES core, supporting key loading, data block loading, control signaling for initialization and stepping through encryption/decryption operations, and reading of the AES output results and status. The implementation follows synchronous register updates and asynchronous reset, facilitating integration in a larger digital system with a simple bus interface.
+
+Submodules:
+    - aes_core
+    Input ports:  
+        clk: Clock signal for synchronous operation.  
+        reset_n: Asynchronous active-low reset signal that initializes the core.  
+        encdec: Control signal to select between encryption (1) and decryption (0) mode.  
+        init: Signal to start key setup/init phase.  
+        next: Signal to start the next encryption or decryption operation.  
+        key [255:0]: Input AES key data, maximum 256 bits for supporting AES-256.  
+        keylen: Control signal indicating the key length (AES-128, AES-192, or AES-256).  
+        block [127:0]: 128-bit data block input to be encrypted or decrypted.  
+
+    Output ports:  
+        ready: Signal indicating the AES core is ready to accept new commands or data.  
+        result [127:0]: 128-bit output data block resulting from encryption or decryption.  
+        result_valid: Signal indicating that the output result is valid and ready for use.  
+    
+    Functionality:  
+        This module represents the core of an AES (Advanced Encryption Standard) encryption and decryption engine. It controls the overall AES process, including key initialization, encryption, and decryption operations on 128-bit data blocks. Based on control signals, it manages submodules for enciphering, deciphering, and key expansion, and provides output data and flags indicating readiness and validity of the processed data.
+    
+    You can call these submodules without instantiating them to implement the functionality of the module.

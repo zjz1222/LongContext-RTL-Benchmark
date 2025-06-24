@@ -1,0 +1,28 @@
+Module name:  
+    output_buffer  
+
+Function description:  
+    This module implements an output buffer with a memory array of 32 entries, each 128 bits wide (totaling 4096 bits, roughly 4KB). It supports synchronous write and read operations controlled by clock (CLK), chip enable (CEN), write enable (WEN), address (A), and an additional RETN signal to gate accesses. The buffer stores 128-bit words, and input data is 256 bits wide, with a partial portion being written into the memory under specific conditions.  
+
+Input ports:  
+    CLK: Clock signal for synchronous operations.  
+    CEN: Chip enable, active low; enables read operations when low.  
+    WEN: Write enable, active low; enables write operations when low.  
+    A [12:0]: 13-bit address input to select one of the 32 memory entries (though only lower bits are used here).  
+    D [255:0]: 256-bit data bus input, from which a portion is written to the memory on write.  
+    RETN: Enable signal that must be asserted (high) for read or write to proceed.  
+
+Output ports:  
+    Q [127:0]: 128-bit data output bus that delivers the output memory word on a read operation.  
+
+Implementation:  
+    The design includes a 32-depth memory array (mem), each element 128 bits wide. On each rising clock edge:  
+    - If write enable (WEN) is low, RETN is high, and CEN can be either, a write operation is performed. Before writing, the output Q is reset to zero.  
+    - The write sequence takes the 256-bit input D and selectively writes bits into the memory entry mem[A-i] in a nested loop fashion:  
+      * The outer loop iterates i from 0 to 15 (16 iterations).  
+      * The inner loop iterates j from 16*i + 8 up to 16*i + 15 (8 iterations per outer loop).  
+      * For each iteration, bit D[j] is written into mem[A - i][j - 8*(i + 1)]. This maps a specific subset of bits from D into the memory word, but due to the indexing it increments addresses in a descending order from A down to A-15.  
+    - If the chip enable (CEN) is low, write enable (WEN) is high, and RETN is asserted, a read operation occurs: the 128-bit word stored at mem[A] is assigned to output Q.  
+    - If neither read nor write conditions are met, output Q is driven to zero.  
+    Notably, the overall memory depth is 32 entries, but writing accesses mem at addresses from A down to A-15, which may cause address wrapping or unexpected behavior if not carefully managed externally. The design uses synchronous read and write with an enable signal RETN gating accesses.  
+    The outputs and memory updates happen on the rising edge of the clock. The write operation involves a complex partial bit-mapping from input D into the memory word instead of direct word writes.

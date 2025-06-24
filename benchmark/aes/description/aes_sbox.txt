@@ -1,0 +1,20 @@
+Module name:  
+    aes_sbox  
+
+Function description:  
+    This module implements the AES S-box, a 256-byte substitution box used in AES encryption. It acts as a lookup table that takes an 8-bit input byte and outputs the corresponding 8-bit substituted value according to the AES standard. This specific implementation processes four bytes in parallel, effectively handling a full 32-bit word by performing substitution on each byte simultaneously.
+
+Input ports:  
+    sboxw [31:0]: A 32-bit input word, consisting of four bytes to be substituted via the AES S-box.
+
+Output ports:  
+    new_sboxw [31:0]: A 32-bit output word containing the substituted bytes corresponding to each input byte after applying the AES S-box.
+
+Implementation:  
+    The core of the design is a 256-element array of 8-bit values named "sbox," where each element stores the substitution value for the byte index according to the AES S-box lookup table. Each entry corresponds to one byte value (0x00 through 0xFF) mapped to its respective substitution byte.
+
+    The module performs parallel lookup operations on the four individual bytes of the 32-bit input word `sboxw`. Each byte of `sboxw` (bits [31:24], [23:16], [15:8], and [7:0]) is used as an index to access the corresponding element in the sbox array. The results from the four lookups are then concatenated to form the 32-bit output word `new_sboxw`.
+
+    The sbox array is statically assigned with fixed values matching the standard AES substitution box. This approach essentially implements the AES S-box as a combinational ROM that supports four parallel lookups to improve processing throughput for 32-bit data paths.
+
+    No sequential logic or clock signals are used; the module purely uses combinational logic through wire assignments to implement the S-box functionality.

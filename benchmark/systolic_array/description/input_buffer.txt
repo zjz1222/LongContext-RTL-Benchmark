@@ -1,0 +1,27 @@
+Module name:  
+    input_buffer  
+
+Function description:  
+    This module implements an input buffer memory with 32 entries, each 128 bits wide. It supports synchronous read and write operations controlled by the clock and control signals. The buffer can be reset asynchronously to clear all stored data.
+
+Input ports:  
+    CLK: Clock signal for synchronous operations.  
+    CEN: Chip enable signal, active low. When low, read operation is enabled.  
+    WEN: Write enable signal, active low. When low (and RETN is high), a write operation is performed.  
+    A [4:0]: 5-bit address input to select one of the 32 memory entries for reading or writing.  
+    RESET: Active low asynchronous reset to clear the memory content.  
+    D [127:0]: 128-bit data input used during write operations.  
+    RETN: Additional control signal required to permit read or write operations.
+
+Output ports:  
+    Q [127:0]: 128-bit data output providing the content read from the memory at address A.
+
+Implementation:  
+    The module declares a memory array called 'mem' consisting of 32 elements, each 128 bits wide. An integer parameter 'num' is set to 32 reflecting the memory depth. Two integers 'i' and 'j' are used as loop counters in the always block.  
+    On the rising edge of the clock (CLK):  
+    - If RESET is low (active), the entire memory is asynchronously cleared by setting each 128-bit entry to zero using a for-loop iterating over all 32 entries.  
+    - If write enable (WEN) is low and RETN is high, a write operation occurs at the address A. The data input D is written into the memory at location (i + A), but the nested loops show writing only the first 16 entries offset by A, and within each entry, only 8 bits at a time are assigned individually. This behavior implies a sliding write window starting at address A and spanning 16 consecutive entries in the memory, each 128 bits wide. Each bit from D is assigned one-to-one to corresponding bits in memory locations from i+A, specifically bits j=j to j+7.  
+    - If chip enable (CEN) is low and RETN is high (read condition), the data at address A in the memory is assigned to output Q.  
+    - Otherwise, the output Q is reset to zero.  
+    The use of RETN as a gating signal ensures that read and write operations occur only when RETN is high.  
+    Overall, this design behaves as a synchronous memory with a reset, read, and a customized write operation that writes data D across multiple memory locations starting at the address A. The design uses nested loops to partially update memory bits during write, which is uncommon and suggests a specific buffering or data shifting mechanism.

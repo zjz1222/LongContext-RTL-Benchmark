@@ -1,0 +1,63 @@
+Module name:  
+    ifft4  
+
+Function description:  
+    This module implements a 4-point Inverse Fast Fourier Transform (IFFT) using a radix-2 butterfly network with two stages of butterfly computations. It takes four complex input points (real and imaginary parts), performs bit-reversal indexing followed by two layers of butterfly operations with appropriate twiddle (rotation) factors, and outputs the transformed complex points after scaling. The module is synchronous, controlled by clock, reset, and enable signals, and provides a valid signal indicating when output data is ready.
+
+Input ports:  
+    clk: Clock input signal for synchronous operations.  
+    rst_n: Asynchronous active low reset signal to initialize or reset internal states.  
+    en: Enable signal to trigger calculations and data propagation.  
+    in0_real, in1_real, in2_real, in3_real: Signed real parts of the 4 complex input points, each DATA_WIDTH bits wide.  
+    in0_imag, in1_imag, in2_imag, in3_imag: Signed imaginary parts of the 4 complex input points, each DATA_WIDTH bits wide.
+
+Output ports:  
+    out0_real, out1_real, out2_real, out3_real: Signed real parts of the 4 output complex points after IFFT, each (DATA_WIDTH+2)-bits wide to accommodate bit growth.  
+    out0_imag, out1_imag, out2_imag, out3_imag: Signed imaginary parts of the 4 output points, each (DATA_WIDTH+2)-bits wide.  
+    valid: Output signal indicating when the output data is valid and ready to be consumed.
+
+Implementation:  
+    - The design uses parameterizable DATA_WIDTH to define the input data width (default 8 bits).  
+    - A parameter EXPAND (=9) defines the scale factor (1 << 9 = 512) used to represent rotation (twiddle) factors scaled by 512 to retain precision in fixed-point arithmetic.  
+    - Four sets of 2D rotation factors (RO_ARRAY) representing complex twiddle factors W_N^k for k=0,1,2,3 are initialized using the scaled values in an initial block:
+        RO_ARRAY[0] = (512, 0)         // 1 + j0  
+        RO_ARRAY[1] = (0, 512)         // 0 + j1  
+        RO_ARRAY[2] = (-512, 0)        // -1 + j0  
+        RO_ARRAY[3] = (0, -512)        // 0 - j1  
+    - Input points undergo bit-reversal permutation to reorder them: inputs 1 and 2 are swapped compared to indices, mapping input ports into in_real and in_imag arrays accordingly.  
+    - The butterfly operations are separated into two stages:
+        * Stage 1: Two butterfly units process pairs (in_real[0], in_real[1]) and (in_real[2], in_real[3]) simultaneously with rotation factor RO_ARRAY[0]. These butterfly units increase the data width by 1 bit to accommodate internal growth.  
+        * Stage 2: Two butterfly units process outputs from stage 1, paired as (out1_0, out1_2) and (out1_1, out1_3), using rotation factors RO_ARRAY[0] and RO_ARRAY[1] respectively. This stage further increases data width by one more bit to DATA_WIDTH+1.  
+    - The enable signals (en_connect) are wired so the first stage butterflies are enabled by module input en, and their valid outputs cascade as enable signals for the second-stage butterflies.  
+    - Each butterfly module is parameterized with DATA_WIDTH and EXPAND, accepts inputs (real, imag) pairs, twiddle factors, and produces outputs and valid signals.  
+    - Final butterfly outputs (in_real_step2 and in_imag_step2) are right arithmetic shifted by 2 bits (equivalent to dividing by 4) to scale the result correctly for IFFT normalization.  
+    - Outputs are exposed as out*_real and out*_imag with extended bit widths to encompass the enlarged data range due to butterfly computations.  
+    - The valid output is asserted only when the final butterfly stage indicates valid output, enabling downstream modules to latch or process the computed data accordingly.
+
+Overall, this module performs a fully pipelined and parameterized 4-point IFFT computation with bit-reversal indexing, two butterfly processing stages with proper twiddle factors, scaling, and output valid signaling, making it suitable for high-speed FFT/IFFT hardware applications.
+
+Submodules:
+    - Butterfly  
+    Input ports:  
+        clk: Clock signal for synchronous operation.  
+        rst_n: Active-low reset signal to initialize internal registers.  
+        en: Enable signal to start the butterfly computation and pipeline data.  
+
+        in1_real: Real part of first input complex number (signed, DATA_WIDTH bits).  
+        in1_imag: Imaginary part of first input complex number (signed, DATA_WIDTH bits).  
+        in2_real: Real part of second input complex number (signed, DATA_WIDTH bits).  
+        in2_imag: Imaginary part of second input complex number (signed, DATA_WIDTH bits).  
+
+        ro_real: Real part of the rotation factor (twiddle factor), signed with width EXPAND+2 bits (including sign).  
+        ro_imag: Imaginary part of the rotation factor, similar width as ro_real.  
+    Output ports:  
+        out1_real: Real part of first output complex number (signed, DATA_WIDTH+1 bits, extended by 1 bit for precision).  
+        out1_imag: Imaginary part of first output complex number (signed, DATA_WIDTH+1 bits).  
+        out2_real: Real part of second output complex number (signed, DATA_WIDTH+1 bits).  
+        out2_imag: Imaginary part of second output complex number (signed, DATA_WIDTH+1 bits).  
+
+        valid: Signal indicating that the outputs are valid and correspond to a finished butterfly computation operation.
+    Functionality:  
+        This module implements a pipelined Butterfly unit typically used in FFT (Fast Fourier Transform) calculations. It performs complex number multiplications and additions/subtractions to compute two output complex values from two input complex values and a complex rotation factor (twiddle factor). The design uses fixed-point arithmetic with parameterized data width and scaling (EXPAND) to maintain precision. Three pipeline stages ensure efficient throughput and timing.
+
+    You can call these submodules without instantiating them to implement the functionality of the module.

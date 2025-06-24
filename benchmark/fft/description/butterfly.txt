@@ -1,0 +1,65 @@
+Module name:  
+    Butterfly  
+
+Function description:  
+    This module implements a pipelined Butterfly unit typically used in FFT (Fast Fourier Transform) calculations. It performs complex number multiplications and additions/subtractions to compute two output complex values from two input complex values and a complex rotation factor (twiddle factor). The design uses fixed-point arithmetic with parameterized data width and scaling (EXPAND) to maintain precision. Three pipeline stages ensure efficient throughput and timing.
+
+Input ports:  
+    clk: Clock signal for synchronous operation.  
+    rst_n: Active-low reset signal to initialize internal registers.  
+    en: Enable signal to start the butterfly computation and pipeline data.  
+
+    in1_real: Real part of first input complex number (signed, DATA_WIDTH bits).  
+    in1_imag: Imaginary part of first input complex number (signed, DATA_WIDTH bits).  
+    in2_real: Real part of second input complex number (signed, DATA_WIDTH bits).  
+    in2_imag: Imaginary part of second input complex number (signed, DATA_WIDTH bits).  
+
+    ro_real: Real part of the rotation factor (twiddle factor), signed with width EXPAND+2 bits (including sign).  
+    ro_imag: Imaginary part of the rotation factor, similar width as ro_real.  
+
+Output ports:  
+    out1_real: Real part of first output complex number (signed, DATA_WIDTH+1 bits, extended by 1 bit for precision).  
+    out1_imag: Imaginary part of first output complex number (signed, DATA_WIDTH+1 bits).  
+    out2_real: Real part of second output complex number (signed, DATA_WIDTH+1 bits).  
+    out2_imag: Imaginary part of second output complex number (signed, DATA_WIDTH+1 bits).  
+
+    valid: Signal indicating that the outputs are valid and correspond to a finished butterfly computation operation.
+
+Implementation:  
+    The Butterfly module operates in three pipeline stages, each advancing on the clock edge when enabled:
+
+    1. **First stage**:  
+       - Computes the partial products for complex multiplication of input2 (x2) with the rotation factor (ro).  
+       - Specifically calculates four products:  
+         - in2_real * ro_real  
+         - in2_imag * ro_imag  
+         - in2_real * ro_imag  
+         - in2_imag * ro_real  
+       - Simultaneously, input1 (x1) values are saved and left-shifted by EXPAND bits to align precision with the products.  
+
+    2. **Second stage**:  
+       - Combines the intermediate multiplication terms to form the real and imaginary parts of rod = x2 * ro:  
+         - rod_real = (in2_real * ro_real) - (in2_imag * ro_imag)  
+         - rod_imag = (in2_real * ro_imag) + (in2_imag * ro_real)  
+       - Also propagates the shifted x1 inputs forward for the final addition/subtraction.  
+       - The enable signal is pipelined (stored in `en_r`) to track data validity at each pipeline stage.  
+
+    3. **Third stage**:  
+       - Calculates the final butterfly outputs y1 and y2 using:  
+         - y1 = x1 + rod  
+         - y2 = x1 - rod  
+       - These are computed separately for real and imaginary parts to produce out1 and out2 respectively.  
+
+    Precision and Width Handling:  
+    - A parameter `PRECISION` (set to 3) is used to introduce additional bits in internal calculations to prevent overflow and maintain accuracy across multiplication and addition stages.  
+    - The rotation factor input is expanded by `EXPAND` bits to allow for fixed-point representation of fractional twiddle factors and to handle scaling.  
+    - Outputs truncate the internal wider results, discarding the lower EXPAND bits, while retaining the sign and upper bits to represent final data with `DATA_WIDTH+1` bits width.  
+      
+    Control and Data Validity:  
+    - The enable signal (`en`) is pipelined through a 5-bit register `en_r` to ensure synchronization of valid data flags with output data after the three pipeline stages.  
+    - The `valid` output is asserted when the pipeline's third stage produces valid output data corresponding to the initial enabled input.  
+
+    Reset Behavior:  
+    - On the active-low reset (`rst_n`), all internal registers and pipeline state are cleared to zero to ensure known startup conditions.  
+
+This pipelined implementation ensures that once the pipeline is filled, new inputs can be fed each clock cycle, leading to a high-throughput, low-latency butterfly calculation suitable for FFT processor designs.

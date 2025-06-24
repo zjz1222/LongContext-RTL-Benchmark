@@ -1,0 +1,37 @@
+Module name:  
+    in_0_1_compressor_4_2  
+
+Function description:  
+    This module implements a modified 4:2 compressor with one fixed input set to 0 and another fixed input set to 1. By fixing these inputs, the design simplifies the first stage of the 3:2 compression to a single NOT gate, optimizing logic resource usage. The compressor reduces four input bits into two outputs plus a carry output, commonly used in multiplier or adder circuits to speed up partial sum accumulation.
+
+Input ports:  
+    i1: One of the primary input signals to the compressor (variable).  
+    i3: Another input signal to the compressor.  
+    ci: Carry input from a previous compression stage or operation.
+
+Output ports:  
+    co: Carry-out signal from the first compression stage, directly assigned as the value of i1.  
+    c: Carry-out signal from the second compression stage compressor_3_2 module.  
+    d: Sum output signal from the second stage compressor_3_2 module.
+
+Implementation:  
+    The compressor is implemented in two conceptual stages:  
+    1. The first stage uses the property that i0 is fixed to 0 and i2 fixed to 1, which allows the carry-out (co) to be directly assigned as i1, bypassing complex logic. The inverter of i1 (inv_i1) is produced by a simple NOT gate.  
+    2. The second stage instantiates a standard 3:2 compressor module named compressor_3_2. This module takes three inputs: the inverted i1 (inv_i1) as i0, i3, and the carry input (ci). It outputs two signals, c (carry) and d (sum), which represent the compressed results of the second stage.
+    
+    The design commentary includes transistor count and gate usage, highlighting the optimization with reduced gate complexity by fixing two inputs and using a NOT gate to implement the first compression stage. This approach conserves resources, such as reducing the need for multiple AND/OR gates in the first stage, using only one NOT gate and a 3:2 compressor in the second stage to complete the compression.
+
+Submodules:
+    - compressor_3_2
+    Input ports:  
+        i0: First single-bit input operand.  
+        i1: Second single-bit input operand.  
+        ci: Carry-in single-bit input operand.
+    Output ports:  
+        co: Carry-out single-bit output resulting from the addition.  
+        d: Sum (or difference) single-bit output resulting from the addition.
+    Functionality:  
+        This module implements a 3:2 compressor, which essentially functions as a full adder. It computes the sum and carry outputs from three single-bit inputs. The internal design focuses on an efficient XOR gate structure by reusing intermediate results generated inside the module, thus reducing the number of MOS transistors needed for the full adder implementation.
+
+    You can call these submodules without instantiating them to implement the functionality of the module. 
+

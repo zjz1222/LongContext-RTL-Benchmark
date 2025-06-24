@@ -1,0 +1,21 @@
+Module name:  
+    non_cin_compressor_4_2  
+
+Function description:  
+    This module implements a 4-to-2 compressor without considering carry input. It compresses four input bits into two output bits plus a carry-out signal, effectively reducing the number of bits for further arithmetic operations such as addition in digital circuits.
+
+Input ports:  
+    i0: first input bit  
+    i1: second input bit  
+    i2: third input bit  
+    i3: fourth input bit  
+
+Output ports:  
+    co: carry-out from the first stage 3:2 compressor  
+    c: carry-out from the half adder in the second stage  
+    d: sum output from the half adder in the second stage  
+
+Implementation:  
+    The module consists of two main components connected in series. First, a 3:2 compressor module compresses inputs i0, i1, and i2 into a carry-out (co) and a sum output (wire_d). The 3:2 compressor internally takes three inputs and produces two outputs (carry and sum). Then, in the second stage, a half adder takes the sum output of the first compressor (wire_d) and the fourth input bit (i3) as inputs. The half adder produces a carry output (c) and a sum output (d).  
+    The carry input to the 3:2 compressor is actually connected to i2, but the design ignores any external carry-in input besides the three held inputs. This effectively forms a 4:2 compressor by cascading a 3:2 compressor with a half adder without considering an additional carry-in signal.  
+    Resource utilization is minimal, using one 3:2 compressor and one half adder, accounting for the gate and transistor counts summarized in the comments. The design focuses on reducing the complexity while providing efficient bit compression suitable for arithmetic circuits.

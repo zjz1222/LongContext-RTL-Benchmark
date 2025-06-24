@@ -1,0 +1,28 @@
+Module name:
+    shared_buffer
+
+Function description:
+    This module implements a 128kB shared buffer with synchronous read and write capabilities. It acts as a small memory block that stores 128-bit wide data words across 32 addressable locations. The buffer supports controlled memory read and write operations based on chip enable, write enable, and read enable signals.
+
+Input ports:
+    CLK: Clock signal used for synchronous memory operations.
+    CEN: Chip enable signal (active low). When active, enables memory read operation.
+    WEN: Write enable signal (active low). When active, enables memory write operation.
+    A [12:0]: 13-bit address input, used to select the memory location to read from or write to. Although declared as 13 bits, only 5 bits are effectively used because the memory has 32 locations.
+    D [127:0]: 128-bit data input used to provide the data to be written into memory.
+    RETN: Read enable signal, used alongside CEN and WEN to control whether a read or write operation occurs.
+
+Output ports:
+    Q [127:0]: 128-bit data output presenting the content read from the memory or zero when no valid read occurs.
+
+Implementation:
+    The module defines an internal memory array named "mem" consisting of 32 memory words, each 128 bits wide.
+    On the rising edge of the clock signal (CLK), the always block executes:
+    - If both the write enable (WEN) and read enable (RETN) signals are active low (~WEN & RETN), the module performs a write operation:
+        * The input data (D) is stored at the memory address specified by A.
+        * The output Q is reset to zero during the write cycle.
+    - If the chip enable (CEN) and read enable (RETN) signals are active low (~CEN & RETN), the module performs a read operation:
+        * The data stored at address A in memory is assigned to the output Q.
+    - For all other cases, the output Q is reset to zero.
+    
+    Note: The memory depth is 32 locations addressed by 5 bits, although the address input is 13 bits wide, suggesting that the higher bits are ignored or reserved for future use. The use of RETN along with the write and chip enable signals is to ensure valid read/write conditions. The signals CEN, WEN, and RETN are active low signals enabling respective functions.

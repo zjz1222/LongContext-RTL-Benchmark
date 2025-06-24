@@ -1,0 +1,20 @@
+Module name:  
+    inv_unit  
+
+Function description:  
+    This module implements a minimal unit for bitwise negation and addition by one, effectively realizing the XOR gate function using basic logic gates. It takes two single-bit inputs and provides their XOR and OR results as outputs. The design emphasizes minimal hardware resources while enabling reuse of intermediate signals.
+
+Input ports:  
+    a: a single-bit input signal  
+    b: a single-bit input signal  
+
+Output ports:  
+    xor_o: single-bit output representing the XOR of inputs a and b  
+    or_o: single-bit output representing the OR of inputs a and b  
+
+Implementation:  
+    The module computes intermediate signals to achieve the XOR function using basic gates. Specifically, it calculates:  
+    - aORb: the OR of inputs a and b (a | b)  
+    - aNANDb: the NAND of inputs a and b, implemented as the negation of their AND ( ~(a & b) )  
+      
+    The XOR output (xor_o) is then derived by ANDing these two intermediate signals (aORb & aNANDb). This leverages the equivalence between the XOR operation and the expression (a OR b) AND (NOT (a AND b)). The OR output (or_o) is simply assigned as the intermediate OR signal aORb, which avoids redundant computation and conserves resources. This design uses one AND gate, one OR gate, and one NAND gate to realize the XOR and OR functionality efficiently.

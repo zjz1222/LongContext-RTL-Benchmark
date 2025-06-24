@@ -1,0 +1,35 @@
+Module name:  
+    PE_row  
+
+Function description:  
+    The PE_row module implements a row of Processing Elements (PEs) configured in a chain. It manages a pipeline of PEs, each processing input data and passing intermediate results and weights along the row. The design supports parameterizable width (`num`) for the number of PEs in the row (default 16). Each PE operates on signed 8-bit activation inputs and 16-bit partial sums, coordinating weight propagation and accumulation of sums across the row. The module supports synchronous operation with enable, reset, and control signals for dynamic weight update and selection.
+
+Input ports:  
+    CLK: Clock signal operating at 200 MHz for synchronization.  
+    RESET: Active low reset signal to initialize the PEs.  
+    EN: Enable signal activating the accelerator row when high.  
+    W_EN: Write enable signal for weight updates within the PEs.  
+    SELECTOR: Control signal used within each PE for selecting operational modes or inputs.  
+    active_left [7:0]: Signed 8-bit activation input to the first PE on the left side of the row.  
+    in_weight_above [num*8-1:0]: Concatenated vector of 8-bit weights input to each PE from above.  
+    in_sum [num*16-1:0]: Concatenated vector of 16-bit partial sums input to each PE for accumulation.  
+
+Output ports:  
+    out_weight_below [num*8-1:0]: Concatenated vector of 8-bit weights output from each PE toward the row below.  
+    out_sum [num*16-1:0]: Concatenated vector of 16-bit outputs representing the accumulated sums from each PE.  
+
+Implementation:  
+    The module generates an array of `num` PEs connected in series using a generate-for loop indexed by `gi`.  
+
+    - For the first PE (`gi == 0`):  
+        - The PE takes the external input `active_left` as its left activation input.  
+        - Its right activation output is connected to the first 8 bits of the internal wire `active_right`.  
+        - It uses the first 8 bits of weights from `in_weight_above` and output weights are mapped to the first 8 bits of `out_weight_below`.  
+        - Partial sums for input and output use the first 16-bit segment of `in_sum` and `out_sum`.  
+
+    - For subsequent PEs (`gi > 0`):  
+        - The left activation input is connected to the right activation output of the previous PE via `active_right`.  
+        - The right activation output is connected to the succeeding segment of `active_right` to feed the next PE in the chain.  
+        - Weights and partial sums are sliced correspondingly from concatenated inputs and output buses for each PE instance.  
+
+    Each PE instance receives the control signals `CLK`, `RESET`, `EN`, `W_EN`, and `SELECTOR` for coordinated operation. The activations, weights, and partial sums flow through the row, enabling weight updates and sum accumulation per PE. The chaining of activations and weights allows this module to act as a vectorized and pipelined computation row for neural network or signal processing acceleration.

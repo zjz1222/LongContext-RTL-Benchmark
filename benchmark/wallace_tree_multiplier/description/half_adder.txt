@@ -1,0 +1,22 @@
+Module name:  
+    half_adder  
+
+Function description:  
+    This module implements a half adder circuit using basic logic gates. It performs the addition of two single-bit binary inputs, producing a sum and a carry-out (cout) bit. The design optimizes transistor usage by reusing intermediate signals within the XOR gate structure, thereby reducing the overall number of MOS transistors needed.
+
+Input ports:  
+    a: a 1-bit input operand  
+    b: a 1-bit input operand  
+
+Output ports:  
+    cout: a 1-bit output representing the carry-out from the addition of inputs a and b  
+    sum: a 1-bit output representing the sum of inputs a and b  
+
+Implementation:  
+    The half adder module uses two key intermediate signals derived from inputs a and b:  
+    - a_and_b: the logical AND of a and b, which directly produces the carry-out (cout).  
+    - a_nor_b: the logical NOR of a and b, serving as an intermediate signal to help form the sum output.  
+   
+    The sum output is calculated as the negation of the OR between a_nor_b and a_and_b; effectively, this corresponds to the XOR of a and b implemented via NOR and AND gates. This approach avoids using explicit XOR or XNOR gates, resulting in reduced gate and transistor count. According to the resource summary, the design uses 1 AND gate and 2 NOR gates totaling 14 transistors.  
+
+    By reusing intermediate signals within the XOR gate logic, the design achieves efficient gate-level implementation of a half adder with minimized hardware resources.

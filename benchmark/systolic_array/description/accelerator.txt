@@ -1,0 +1,129 @@
+Module name:  
+    Accelerator  
+
+Function description:  
+    The Accelerator module is designed as a hardware accelerator for neural network or convolutional operations. It integrates input, weight, shared, and output memory buffers with a processing element (PE) array. The module coordinates data movement between these buffers and controls the PE array to perform computations on the input activations and weights. It operates synchronously at 200 MHz, using control signals to enable functionality and reset the design. The Accelerator interfaces with a shared SRAM for input, weight, and output data storage, orchestrated by an internal controller that manages addressing, enable, and read/write signals for these memories and the PE array.  
+
+Input ports:  
+    CLK: System clock input signal running at 200 MHz, used for synchronous operations.  
+    RESET: Active-low reset signal, used to initialize or reset the accelerator.  
+    EN: Enable signal, active-high to activate the accelerator¡¯s operation.  
+    IADDR [12:0]: 13-bit input address for accessing input data in shared SRAM.  
+    WADDR [12:0]: 13-bit weight address for accessing weight data in shared SRAM.  
+    OADDR [12:0]: 13-bit output address for accessing output data in shared SRAM.  
+    input_data [127:0]: 128-bit wide data input for writing into the shared buffer.  
+
+Output ports:  
+    STATE [5:0]: 6-bit wide output representing the current state of the controller or accelerator, primarily for testbench monitoring and debugging.  
+
+Implementation:  
+    The Accelerator module instantiates several submodules and interconnects them:  
+    - **Controller:** Manages the accelerator's overall operation. It receives CLK, RESET, EN, and addresses (IADDR, WADDR, OADDR) as inputs and outputs control signals such as enables, chip enables, read enables, write enables, selector signals, and addresses for shared, input, weight, and output buffers/memories. It also provides the STATE output reflecting the running status of the accelerator.  
+      
+    - **Shared Buffer:** A 128-bit wide shared SRAM buffer interfaced via shared control signals from the controller (share_cen, share_wen, share_ren, share_addr). It takes input_data as its data input and outputs a 128-bit data bus (share_out) to other buffers.  
+      
+    - **Input Buffer:** A 128-bit memory module for input data. It is controlled by input-specific control signals (input_cen, input_wen, input_ren, input_addr) and receives data from the shared buffer (share_out). Its output (input_out) provides input activations to the PE array. It also accepts the RESET signal for initialization.  
+      
+    - **Weight Buffer:** Similar to the input buffer, the weight buffer stores weight data. It is controlled separately through weight-specific control signals (weight_cen, weight_wen, weight_ren, weight_addr) and receives data from the shared buffer (share_out). Its output (weight_out) provides weights to the PE array.  
+      
+    - **PE Array:** This module represents an array of processing elements, configured by parameters `num1=16` and `num2=16`, resulting in a large matrix of PEs for parallel computation. It takes input activations (input_out), weights (weight_out), control signals (CLK, RESET, EN, SELECTOR, W_EN), and outputs the final computed sums (out_sum). The PE array also provides a weighted output (out_weight_below), presumably fed back internally or used downstream (not connected outside this module).  
+      
+    - **Output Buffer:** Stores the final computation results from the PE array¡¯s out_sum data bus. Controlled by output-specific signals (output_cen, output_wen, output_ren, output_addr), it stores 16-bit segments from each PE and presents the stored result on output_out.  
+
+    The data flows from the external input_data into the shared buffer, then selectively moved to the input and weight buffers based on the addresses and control signals from the controller. The PE array consumes inputs and weights to perform parallel computations and produces a combined output stored in the output buffer. The controller synchronizes these operations based on the enable and reset signals, generating the STATE output for runtime monitoring.  
+
+    Note: Some commented code and parameters are placeholders indicating that in a real implementation, additional parameters like channel numbers, sizes, padding, strides, and shift values should be provided, possibly through instructions rather than testbench inputs. The RESET is active low, and all memory enables (CEN, WEN, REN) follow standard active low or active high conventions (as implied by naming, but not explicitly commented). The module is highly modular and tailored for high-throughput neural network acceleration.
+
+Submodules:
+    - controller  
+    Input ports:  
+        CLK: Clock signal operating at 200 MHz for synchronization of all operations.  
+        RESET: Active-low reset signal that initializes the controller and sets outputs and state machine to their default idle conditions.  
+        EN: Enable signal that activates the controller to begin or continue operations when high.  
+        IADDR [12:0]: Input address from shared SRAM representing the start address for activation data.  
+        WADDR [12:0]: Weight address from shared SRAM representing the start address for weight data.  
+        OADDR [12:0]: Output address for writing processed results back into shared SRAM.  
+    Output ports:  
+       STATE [5:0]: The current state of the controller represented in 6 bits, allowing external monitoring of operation progress.  
+       W_EN: Write enable control signal for the processing element array.  
+       SELECTOR: Control signal to select data path or operation mode within the processing element array.  
+       share_wen, share_ren, share_cen: Write enable, read enable, and chip enable signals for the shared buffer memory, controlling data flow into and out of the shared buffer.  
+       share_addr [12:0]: Address bus for accessing shared buffer memory.  
+       weight_wen, weight_ren, weight_cen: Write enable, read enable, and chip enable signals for the weight buffer memory.  
+       weight_addr [12:0]: Address bus for weight buffer memory.  
+       activate_wen, activate_ren, activate_cen: Write enable, read enable, and chip enable signals for the activation buffer memory.  
+       activate_addr [12:0]: Address bus for activation buffer memory.  
+       output_wen, output_ren, output_cen: Write enable, read enable, and chip enable signals for the output buffer memory.  
+       output_addr [12:0]: Address bus for output buffer memory.  
+    Functionality:  
+        This module is a control unit designed for managing data flow and processing stages of a hardware accelerator, typically used in neural network or convolutional processing. It controls the states of loading weights and activations from shared buffers into dedicated weight and activation buffers, manages the processing element (PE) enable signals, and handles output data writing. The controller orchestrates data movement between shared memory buffers and specialized internal buffers through several operational states, ensuring proper sequencing of data input, computation, and output phases.
+    
+    - shared_buffer
+    Input ports:
+        CLK: Clock signal used for synchronous memory operations.
+        CEN: Chip enable signal (active low). When active, enables memory read operation.
+        WEN: Write enable signal (active low). When active, enables memory write operation.
+        A [12:0]: 13-bit address input, used to select the memory location to read from or write to. Although declared as 13 bits, only 5 bits are effectively used because the memory has 32 locations.
+        D [127:0]: 128-bit data input used to provide the data to be written into memory.
+        RETN: Read enable signal, used alongside CEN and WEN to control whether a read or write operation occurs.
+    Output ports:
+        Q [127:0]: 128-bit data output presenting the content read from the memory or zero when no valid read occurs.
+    Functionality:
+        This module implements a 128kB shared buffer with synchronous read and write capabilities. It acts as a small memory block that stores 128-bit wide data words across 32 addressable locations. The buffer supports controlled memory read and write operations based on chip enable, write enable, and read enable signals.
+    
+    - input_buffer  
+    Input ports:  
+        CLK: Clock signal for synchronous operations.  
+        CEN: Chip enable signal, active low. When low, read operation is enabled.  
+        WEN: Write enable signal, active low. When low (and RETN is high), a write operation is performed.  
+        A [4:0]: 5-bit address input to select one of the 32 memory entries for reading or writing.  
+        RESET: Active low asynchronous reset to clear the memory content.  
+        D [127:0]: 128-bit data input used during write operations.  
+        RETN: Additional control signal required to permit read or write operations.
+    Output ports:  
+        Q [127:0]: 128-bit data output providing the content read from the memory at address A.    
+    Functionality:  
+        This module implements an input buffer memory with 32 entries, each 128 bits wide. It supports synchronous read and write operations controlled by the clock and control signals. The buffer can be reset asynchronously to clear all stored data.
+    
+    - weight_buffer  
+    Input ports:  
+        CLK: Clock signal for synchronization of read and write operations.  
+        CEN: Chip Enable signal, active low, to enable read access to the memory.  
+        WEN: Write Enable signal, active low, to enable write access to the memory.  
+        A [12:0]: 13-bit address input to select the memory location for read or write operations (although only 16 locations are implemented, the upper bits are not used).  
+        D [127:0]: 128-bit data input used for writing data into the memory.  
+        RETN: Return Enable signal, active high, used to enable any memory operation (read or write).
+    Output ports:  
+        Q [127:0]: 128-bit data output that provides the data read from the memory at the addressed location.
+    Functionality:  
+        This module implements a weight buffer memory with a 16-entry storage, where each entry is 128 bits wide. It provides synchronous read and write access to the memory, controlled by clock, chip enable, write enable, and a return enable signal. The buffer is intended to store weight data for processing elements, likely used in neural network or similar applications.
+    
+    - PE_array  
+    Input ports:  
+        CLK: Clock signal running at 200 MHz for synchronous operation.  
+        RESET: Active-low reset signal to initialize or reset the module.  
+        EN: Enable signal for the entire accelerator; when high, the array operates normally.  
+        SELECTOR: Control signal to select between read or use mode for weight data.  
+        W_EN: Enable signal to allow weight data flow through the array.  
+        active_left [num1*8-1:0]: Concatenated 8-bit activation inputs for each of the `num1` PE rows, feeding into the left side of each row.  
+        in_weight_above [num2*8-1:0]: 8-bit weight input vector from above the top PE row, provided to the first PE row.  
+    Output ports:  
+        out_weight_final [num2*8-1:0]: 8-bit weight output vector from the bottom-most PE row, representing the final propagated weights leaving the PE array.  
+        out_sum_final [num2*16-1:0]: 16-bit wide summed output results from the last PE row in the array, representing the computed accumulation results after all PE rows.
+    Functionality:  
+        This module implements a 2-dimensional array of Processing Element (PE) rows, organized as `num1` rows and `num2` PEs per row. It serves as part of an accelerator architecture where each PE row processes input activations and weights to generate summed outputs and propagate weights downward through the array. The module manages data flow and synchronization across multiple PE rows, enabling parallel computation acceleration.
+
+    - output_buffer  
+    Input ports:  
+        CLK: Clock signal for synchronous operations.  
+        CEN: Chip enable, active low; enables read operations when low.  
+        WEN: Write enable, active low; enables write operations when low.  
+        A [12:0]: 13-bit address input to select one of the 32 memory entries (though only lower bits are used here).  
+        D [255:0]: 256-bit data bus input, from which a portion is written to the memory on write.  
+        RETN: Enable signal that must be asserted (high) for read or write to proceed.  
+    Output ports:  
+        Q [127:0]: 128-bit data output bus that delivers the output memory word on a read operation.  
+    Functionality:  
+        This module implements an output buffer with a memory array of 32 entries, each 128 bits wide (totaling 4096 bits, roughly 4KB). It supports synchronous write and read operations controlled by clock (CLK), chip enable (CEN), write enable (WEN), address (A), and an additional RETN signal to gate accesses. The buffer stores 128-bit words, and input data is 256 bits wide, with a partial portion being written into the memory under specific conditions.  
+    
+    You can call these submodules without instantiating them to implement the functionality of the module.

@@ -1,0 +1,37 @@
+Module name:  
+    PE  
+
+Function description:  
+    This module implements a Processing Element (PE) commonly used in systolic array-based accelerators. It performs signed multiplication and accumulation operations, passing data through a pipeline with synchronized activation and weight values. The PE receives input activations and weights, multiplies them, accumulates the results with an incoming sum, and propagates activation and weight values downstream for continuous computation.
+
+Input ports:  
+    CLK:  Clock signal running at 200 MHz for synchronization.  
+    RESET: Active-low reset signal to initialize internal registers.  
+    EN: Enable signal to activate the processing element (active high).  
+    SELECTOR: Control signal to select between two weight registers for the multiplication and weight flow control.  
+    W_EN: Enable signal for loading weights into registers (active high).  
+    active_left [7:0]: 8-bit signed input activation value coming from the left neighbor PE.  
+    in_sum [15:0]: 16-bit signed input sum value representing the partial accumulated result from upstream PEs.  
+    in_weight_above [7:0]: 8-bit signed input weight value coming from the PE above in the systolic array.
+
+Output ports:  
+    active_right [7:0]: 8-bit signed output activation value passed to the right neighbor PE.  
+    out_sum [15:0]: 16-bit signed output sum value representing the accumulated partial results to be passed downstream.  
+    out_weight_below [7:0]: 8-bit signed output weight value sent to the PE below in the systolic array.
+
+Implementation:  
+    The PE contains two 8-bit signed registers, weight_1 and weight_2, to hold two sets of weights used alternately during computation. These weights enable pipelined systolic data flow for matrix multiplication or convolution operations.  
+
+    The always block is triggered on the negative edge of RESET (active-low) or the positive edge of CLK. On reset, all output registers and weight registers are initialized to zero.  
+
+    When enabled by the EN signal:  
+    - The input activation from the left (active_left) is forwarded to the right output (active_right) each cycle, maintaining data movement through the array.  
+    - Depending on the SELECTOR signal:  
+        - If SELECTOR is high, the module multiplies weight_2 by the current input activation and adds in_sum to produce out_sum. If W_EN is also high, it updates weight_1 with in_weight_above, capturing new weights flowing from above for the next cycles.  
+        - If SELECTOR is low, similarly, the module multiplies weight_1 by the current activation and adds in_sum, storing the result in out_sum. When W_EN is high, weight_2 is updated from in_weight_above.  
+
+    The selection mechanism allows the PE to alternate between two weight registers for computation and weight loading, supporting a pipelined and parallel systolic flow.  
+
+    The out_weight_below output is driven by a continuous assignment selecting weight_1 or weight_2, synchronized with SELECTOR, sending the current chosen weight downwards in the array for subsequent PEs to consume.  
+
+    All arithmetic operations are signed, supporting both positive and negative activations and weights, essential for neural network computations or similar applications in the accelerator.

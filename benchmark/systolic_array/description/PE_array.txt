@@ -1,0 +1,54 @@
+Module name:  
+    PE_array  
+
+Function description:  
+    This module implements a 2-dimensional array of Processing Element (PE) rows, organized as `num1` rows and `num2` PEs per row. It serves as part of an accelerator architecture where each PE row processes input activations and weights to generate summed outputs and propagate weights downward through the array. The module manages data flow and synchronization across multiple PE rows, enabling parallel computation acceleration.
+
+Input ports:  
+    CLK: Clock signal running at 200 MHz for synchronous operation.  
+    RESET: Active-low reset signal to initialize or reset the module.  
+    EN: Enable signal for the entire accelerator; when high, the array operates normally.  
+    SELECTOR: Control signal to select between read or use mode for weight data.  
+    W_EN: Enable signal to allow weight data flow through the array.  
+    active_left [num1*8-1:0]: Concatenated 8-bit activation inputs for each of the `num1` PE rows, feeding into the left side of each row.  
+    in_weight_above [num2*8-1:0]: 8-bit weight input vector from above the top PE row, provided to the first PE row.  
+
+Output ports:  
+    out_weight_final [num2*8-1:0]: 8-bit weight output vector from the bottom-most PE row, representing the final propagated weights leaving the PE array.  
+    out_sum_final [num2*16-1:0]: 16-bit wide summed output results from the last PE row in the array, representing the computed accumulation results after all PE rows.
+
+Implementation:  
+    The module defines two parameters `num1` and `num2` which guide the size of the PE array structure: `num1` is the number of PE rows (default 16), and `num2` is the number of PEs in each row (default 16).  
+
+    Internal wires `out_weight_below` and `out_sum` are declared to handle the inter-row propagation of weights and summation data, respectively. Their widths scale with `num1`, `num2`, and bit-widths of the signals involved (8 bits for weights, 16 bits for sums).  
+
+    A 255-bit register `zero` is initialized to zero and used as the initial input sum for the topmost PE row to ensure proper input initialization.  
+
+    The module uses a generate-for loop to instantiate `num1` instances of the `PE_row` module (each configured with `num2` PEs):  
+    - For the first PE row (gi==0), the input activations `active_left` are taken from the lowest 8 bits, and the input sums are zero-initialized (`zero`), while weights come from the external input `in_weight_above`. Outputs are assigned to specific slices of the internal arrays.  
+    - For subsequent PE rows (gi > 0), activations, sums, and weights are taken from corresponding slices of the `active_left` input, the previously computed summations `out_sum`, and the weights propagated from the row above `out_weight_below`. This chaining connects rows vertically, passing intermediate data appropriately.  
+
+    The final summed outputs and weights from the last PE row are assigned to the module output ports `out_sum_final` and `out_weight_final` by extracting corresponding high-order slices from the wide internal buses.  
+
+    Some older code for partial assignments to output sums is commented out, showing an alternative approach to output vector mapping.  
+
+    In summary, the `PE_array` module functions as a hierarchically connected accelerator fabric section, with configurable dimensions, enabling pipelined, parallel weight and activation processing across multiple PE rows for high-throughput computation tasks.
+
+Submodules:
+    - PE_row  
+    Input ports:  
+        CLK: Clock signal operating at 200 MHz for synchronization.  
+        RESET: Active low reset signal to initialize the PEs.  
+        EN: Enable signal activating the accelerator row when high.  
+        W_EN: Write enable signal for weight updates within the PEs.  
+        SELECTOR: Control signal used within each PE for selecting operational modes or inputs.  
+        active_left [7:0]: Signed 8-bit activation input to the first PE on the left side of the row.  
+        in_weight_above [num*8-1:0]: Concatenated vector of 8-bit weights input to each PE from above.  
+        in_sum [num*16-1:0]: Concatenated vector of 16-bit partial sums input to each PE for accumulation.  
+    Output ports:  
+        out_weight_below [num*8-1:0]: Concatenated vector of 8-bit weights output from each PE toward the row below.  
+        out_sum [num*16-1:0]: Concatenated vector of 16-bit outputs representing the accumulated sums from each PE.  
+    Functionality:  
+        The PE_row module implements a row of Processing Elements (PEs) configured in a chain. It manages a pipeline of PEs, each processing input data and passing intermediate results and weights along the row. The design supports parameterizable width (`num`) for the number of PEs in the row (default 16). Each PE operates on signed 8-bit activation inputs and 16-bit partial sums, coordinating weight propagation and accumulation of sums across the row. The module supports synchronous operation with enable, reset, and control signals for dynamic weight update and selection.
+    
+    You can call these submodules without instantiating them to implement the functionality of the module.

@@ -1,0 +1,48 @@
+Module name:  
+    aes_decipher_block  
+
+Function description:  
+    This module implements a single block of an AES (Advanced Encryption Standard) decryption engine. It performs the AES inverse cipher operations on a 128-bit input data block using a provided round key and produces a decrypted 128-bit output block. The module supports both AES-128 and AES-256 key lengths, managing the required number of decryption rounds accordingly. It controls the sequence of inverse cipher transformations including AddRoundKey, InvShiftRows, InvSubBytes (via inverse S-box), and InvMixColumns, orchestrated through a finite state machine, and signals when the output data is ready.
+
+Input ports:  
+    clk: Clock input signal for synchronous operations.  
+    reset_n: Active low synchronous reset signal to initialize internal registers.  
+    next: Signal to initiate the decryption of the next 128-bit data block.  
+    keylen: 1-bit input indicating the AES key length (0 for 128-bit, 1 for 256-bit).  
+    round_key: 128-bit input round key used in the current decryption round.  
+    block: 128-bit input data block to be decrypted.  
+
+Output ports:  
+    round: 4-bit output indicating the current decryption round number.  
+    new_block: 128-bit output providing the decrypted data block after processing.  
+    ready: 1-bit output signal indicating when the decrypted data block is ready and valid.  
+
+Implementation:  
+    The module internally defines constants for AES key lengths, round counts for AES-128 (10 rounds) and AES-256 (14 rounds), and various control states and update types used in its finite state machine (FSM).
+
+    It includes multiple functions to perform finite field (Galois field) multiplications necessary for the InvMixColumns step of AES:
+      - gm2, gm3, gm4, gm8, gm09, gm11, gm13, gm14: 8-bit multiplication helpers implementing specific multiplication constants over GF(2^8).
+      - inv_mixw: applies InvMixColumns transformations on a 32-bit word by combining the multiplication results.
+      - inv_mixcolumns: applies inv_mixw over all four 32-bit words of the 128-bit data block.
+      - inv_shiftrows: rearranges bytes in the data block inversely to the ShiftRows step of AES.
+      - addroundkey: XORs the data block with the given round key.
+
+    The module uses registers to hold the internal state of the block split into four 32-bit words, control counters for sub-bytes word processing and rounds, flags indicating readiness, and current control state (FSM state).
+
+    An instantiation of an inverse S-box module (aes_inv_sbox) performs the InvSubBytes step using a lookup table to process one 32-bit word at a time.
+
+    The FSM controls the AES decryption process through four states:
+      - CTRL_IDLE: waits for the 'next' signal to start decryption.
+      - CTRL_INIT: processes the initial decryption round by applying AddRoundKey and InvShiftRows.
+      - CTRL_SBOX: iteratively applies the InvSubBytes transformation word-wise.
+      - CTRL_MAIN: performs the main rounds which include AddRoundKey, InvMixColumns, InvShiftRows until the last round, after which it performs the final round (AddRoundKey only) and asserts the 'ready' signal.
+
+    The sub-bytes word counter (sword_ctr) tracks which 32-bit word within the block is being processed by the inverse S-box.
+
+    The round counter sets according to the key length at the start and decrements after each round until completion.
+
+    The round_logic block computes the next values of the internal block state depending on the current update type as issued by the FSM, enabling writing updated values into the internal registers with write-enable signals.
+
+    Register updates occur synchronously on the positive clock edge or reset, with write enable signals controlling updates to internal block words, counters, ready flag, and FSM state.
+
+    Together, these components provide a fully pipelined and controlled environment to perform AES block decryption step-by-step over several clock cycles, delivering the decrypted output block and the current round status while signaling completion.

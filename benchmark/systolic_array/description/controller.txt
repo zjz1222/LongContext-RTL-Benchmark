@@ -1,0 +1,41 @@
+Module name:  
+    controller  
+
+Function description:  
+    This module is a control unit designed for managing data flow and processing stages of a hardware accelerator, typically used in neural network or convolutional processing. It controls the states of loading weights and activations from shared buffers into dedicated weight and activation buffers, manages the processing element (PE) enable signals, and handles output data writing. The controller orchestrates data movement between shared memory buffers and specialized internal buffers through several operational states, ensuring proper sequencing of data input, computation, and output phases.
+
+Input ports:  
+- CLK: Clock signal operating at 200 MHz for synchronization of all operations.  
+- RESET: Active-low reset signal that initializes the controller and sets outputs and state machine to their default idle conditions.  
+- EN: Enable signal that activates the controller to begin or continue operations when high.  
+- IADDR [12:0]: Input address from shared SRAM representing the start address for activation data.  
+- WADDR [12:0]: Weight address from shared SRAM representing the start address for weight data.  
+- OADDR [12:0]: Output address for writing processed results back into shared SRAM.  
+
+Output ports:  
+- STATE [5:0]: The current state of the controller represented in 6 bits, allowing external monitoring of operation progress.  
+- W_EN: Write enable control signal for the processing element array.  
+- SELECTOR: Control signal to select data path or operation mode within the processing element array.  
+- share_wen, share_ren, share_cen: Write enable, read enable, and chip enable signals for the shared buffer memory, controlling data flow into and out of the shared buffer.  
+- share_addr [12:0]: Address bus for accessing shared buffer memory.  
+- weight_wen, weight_ren, weight_cen: Write enable, read enable, and chip enable signals for the weight buffer memory.  
+- weight_addr [12:0]: Address bus for weight buffer memory.  
+- activate_wen, activate_ren, activate_cen: Write enable, read enable, and chip enable signals for the activation buffer memory.  
+- activate_addr [12:0]: Address bus for activation buffer memory.  
+- output_wen, output_ren, output_cen: Write enable, read enable, and chip enable signals for the output buffer memory.  
+- output_addr [12:0]: Address bus for output buffer memory.  
+
+Implementation:  
+The controller operates as a finite state machine with the following main states: IDLE, INPUTSW, INPUTSA, INPUTW, INPUTA, CALCULATE, OUTPUT, and RETURN. Initially, upon reset (active low), the controller sets all outputs to their default idle values: disables writes, sets chip enables accordingly, clears buffer addresses, and sets the state to IDLE.  
+
+When enabled (EN = 1), the controller begins from IDLE state and transitions through various stages to manage data transfer and computation:  
+
+- INPUTSW: Loads weight data from the shared buffer by enabling shared buffer read and incrementing the shared buffer address until 16 locations after WADDR have been processed.  
+- INPUTSA: Loads activation data from shared buffer similarly by incrementing the shared address until 15 locations after IADDR, then prepares for weight input.  
+- INPUTW: Transfers weight data from shared buffer to the weight buffer by enabling weight buffer write and incrementing both shared and weight addresses. The weight buffer address starts from -1 and is incremented each cycle. On completion, the state progresses to INPUTA. The PE array is enabled by setting SELECTOR and W_EN signals.  
+- INPUTA: Transfers activation data from shared buffer to activation buffer concurrently while advancing the weight buffer address to continue weights flow. Both shared buffer and activation buffer read and write enables are controlled here. Upon completing 16 increments past IADDR, it disables shared buffer reading and switches activation buffer to read mode preparing for computation.  
+- CALCULATE: Disables PE write enable signals, switches SELECTOR off, and increments activation buffer addresses to process all activation data. After processing 16 addresses, it enables output buffer read to begin data output stage.  
+- OUTPUT: Controls the output buffer read process, incrementing the output address. Once 30 addresses have been read, the state changes to RETURN.  
+- RETURN: Returns the controller to the IDLE state, completing one full processing cycle.  
+
+Throughout this sequencing, the controller carefully orchestrates enable signals for reading, writing, and chip enabling on all buffers (shared, weight, activation, output), managing address pointers for each buffer to coordinate data flow. It also ensures correct timing and synchronization of PE enable signals with data availability. The design assumes 13-bit addresses and fixed data block sizes for weight and activation transfers. The controller uses synchronous logic triggered on the rising edge of the clock with asynchronous active low reset. This implementation helps manage complex data movement and processing stages of a hardware accelerator in a structured, state-driven manner.

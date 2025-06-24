@@ -1,0 +1,18 @@
+Module name:  
+    aes_inv_sbox
+
+Function description:  
+    This module implements the AES inverse S-box substitution for a 32-bit input word. It takes a 32-bit input where each byte represents a substituted value from the AES S-box, performs the inverse S-box transformation on each of the four bytes independently using a lookup table, and outputs the resulting 32-bit word composed of the inverse substituted bytes.
+
+Input ports:  
+    sboxw [31:0]: A 32-bit input consisting of four bytes, each representing a byte to be inverted through the AES inverse S-box.
+
+Output ports:  
+    new_sboxw [31:0]: A 32-bit output composed of the four bytes after applying the AES inverse S-box transformation on each corresponding input byte.
+
+Implementation:  
+    The module defines an array `inv_sbox` of 256 entries, each 8 bits wide, representing the standard AES inverse S-box lookup table. Each entry corresponds to the inverse substitution value for one byte (0x00 to 0xFF).  
+    Internally, the module extracts each of the four bytes from the 32-bit input word `sboxw` and uses these bytes as indices to perform parallel lookups into the `inv_sbox` table. The outputs from these four lookups are concatenated to form the 32-bit output `new_sboxw`, with each byte transformed according to the inverse S-box substitution.  
+    The assignments are done in a combinational manner using continuous assignment statements, ensuring that the output updates immediately when the input changes. This design enables four inverse S-box lookups to be performed in parallel, efficiently processing a full 32-bit word at once.  
+    The entire inverse S-box table is explicitly defined via 256 assign statements mapping each possible byte value to its corresponding inverse substitution byte as defined by the AES standard.
+
